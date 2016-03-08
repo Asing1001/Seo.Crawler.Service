@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing.Imaging;
@@ -21,11 +22,14 @@ namespace Seo.Crawler.Service
         private Stopwatch _watch;
         private Logger logger;
 
+        private static ConcurrentDictionary<Uri, Uri> pageParentURLMapping; // Key is current Page,Content is parent Page
+        private static ConcurrentBag<Uri> pagesToVisit;
+
         public Crawler(CrawlerOptions options)
         {
             _options = options;
-            pagesVisited = new HashSet<Uri>();
-            pagesToVisit = new List<Uri>();
+            pageParentURLMapping = new ConcurrentDictionary<Uri, Uri>();
+            pagesToVisit = new ConcurrentBag<Uri>();
             _watch = new Stopwatch();
             logger = LogManager.GetCurrentClassLogger();
             FirefoxProfile profile = new FirefoxProfile();

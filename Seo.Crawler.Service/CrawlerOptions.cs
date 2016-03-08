@@ -30,6 +30,13 @@ namespace Seo.Crawler.Service
             get { return (Uri)this["StartUrl"]; }
         }
 
+
+        [ConfigurationProperty("RemoteHubUrl")]
+        public Uri RemoteHubUrl
+        {
+            get { return (Uri)this["RemoteHubUrl"]; }
+        }
+
         public override string ToString()
         {
             return string.Format(
