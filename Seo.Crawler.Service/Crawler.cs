@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using NLog;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
@@ -23,7 +24,7 @@ namespace Seo.Crawler.Service
         private static ConcurrentDictionary<Uri, Uri> pageParentURLMapping; // Key is current Page,Content is parent Page
 
         private static ConcurrentDictionary<Uri, Uri> pagesToVisit;
-
+        private Dictionary<Uri, Uri> PartThreading ;
         public Crawler(CrawlerOptions options)
         {
             _options = options;
@@ -31,7 +32,7 @@ namespace Seo.Crawler.Service
             pagesToVisit = new ConcurrentDictionary<Uri,Uri>();
             _watch = new Stopwatch();
             logger = LogManager.GetCurrentClassLogger();
-            
+            PartThreading = new Dictionary<Uri, Uri>();
         }
 
 
@@ -43,39 +44,52 @@ namespace Seo.Crawler.Service
 
         private void Crawl(Uri uri)
         {
-            
-            //First PAge
-            if (pageParentURLMapping.TryAdd(uri,null))
+
+            pagesToVisit.TryAdd(uri, null);//First Page
+
+            while (true)
             {
-
-                var driver = new RemoteWebDriver(new Uri("http://localhost:4500/wd/hub"), DesiredCapabilities.Chrome()); // instead of this url you can put the url of your remote hub
-                driver.Navigate().GoToUrl(uri);
-                SaveHtmlAndScreenShot(uri, driver);
-                GetUnvisitedLinks(driver ,uri);
-
-
-                logger.Info("[{0}] Open page :{1}", pagesToVisit.Count, uri);
-                Parallel.ForEach(pagesToVisit, (keyValue) =>
+                PartThreading = new Dictionary<Uri, Uri>();
+                logger.Info(" Page Visit Size :{0}", pagesToVisit.Count);                    
+                foreach (var pTV in pagesToVisit)
                 {
-                    
-                    var _driver = new RemoteWebDriver(new Uri("http://localhost:4500/wd/hub"), DesiredCapabilities.Chrome()); // instead of this url you can put the url of your remote hub
+                    PartThreading.Add(pTV.Key,pTV.Value);
+                    Uri value;
+                    pagesToVisit.TryRemove(pTV.Key, out value);
+                }
+                Thread.Sleep(1000);
+                logger.Info(" Starting Parallel : [{0}] , pageToVisit : [{1}]", PartThreading.Count, pagesToVisit.Count);
+                Parallel.ForEach(PartThreading, new ParallelOptions { MaxDegreeOfParallelism = 10 }, (keyValue) =>
+                {
+                    logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}]", keyValue.Key, pageParentURLMapping.Count);
+
+
+                    var _driver = new RemoteWebDriver(_options.RemoteHubUrl, DesiredCapabilities.Chrome()); // instead of this url you can put the url of your remote hub
+                        
                     _driver.Navigate().GoToUrl(keyValue.Key);
-                    
-                    SaveHtmlAndScreenShot(uri, _driver);
 
-                    GetUnvisitedLinks(_driver, keyValue.Value);
+                    SaveHtmlAndScreenShot(keyValue.Key, _driver);
+
+                    GetUnvisitedLinks(_driver, keyValue.Key);
                     _driver.Quit();
-                    Uri value ;
-                    if (pageParentURLMapping.TryRemove(keyValue.Key,out value))
-                    {
-                        pageParentURLMapping.TryAdd(keyValue.Key, keyValue.Value);
-                    }
-
+                    Uri value;
+                        
+                    logger.Info("Concurrent List add " + pageParentURLMapping.TryAdd(keyValue.Key, keyValue.Value));
                 });
-            }
-            
-            
 
+
+                logger.Info("Finish Parallel  Finish Size: " + pageParentURLMapping.Count);
+                if (pagesToVisit.Count == 0)
+                {
+                    Thread.Sleep(1000);
+                    break;
+                }
+                
+                
+            }
+
+
+            logger.Info(" [Finish] PageToVisitSize :[{0}] ,Page Finish Size : [{1}]", pagesToVisit.Count, pageParentURLMapping.Count);
             Finish();
         }
 
@@ -115,7 +129,7 @@ namespace Seo.Crawler.Service
             foreach (var link in links)
             {
                 if (link != null && link.Host.Contains(originHost) && !pageParentURLMapping.ContainsKey(link)
-                    && !pagesToVisit.ContainsKey(link) && !result.Contains(link))
+                    && !pagesToVisit.ContainsKey(link) && !PartThreading.ContainsKey(link) && !result.Contains(link))
                 {
                     result.Add(link );
                 }
@@ -167,6 +181,10 @@ namespace Seo.Crawler.Service
         {
             try
             {
+                var removeScriptTag =
+                    "Array.prototype.slice.call(document.getElementsByTagName('script')).forEach(function(item) { item.parentNode.removeChild(item);});";
+                var addClassToBody = "document.getElementsByTagName('body')[0].className += ' seoPrerender';";
+                _driver.ExecuteScript(removeScriptTag + addClassToBody);
                 //uri.AbsolutePath is relative url
                 var result = _driver.PageSource;
                 string filenameWithPath = _options.FolderPath + uri.AbsolutePath + MakeValidFileName(uri.Query);
