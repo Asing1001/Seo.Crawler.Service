@@ -57,15 +57,20 @@ namespace Seo.Crawler.Service
                     Uri value;
                     pagesToVisit.TryRemove(pTV.Key, out value);
                 }
-                Thread.Sleep(1000);
+
+                ChromeOptions options = new ChromeOptions();
+                
+                options.AddArgument("user-data-dir=C:/Debug");
+
+                //Thread.Sleep(1000);
                 logger.Info(" Starting Parallel : [{0}] , pageToVisit : [{1}]", PartThreading.Count, pagesToVisit.Count);
-                Parallel.ForEach(PartThreading, new ParallelOptions { MaxDegreeOfParallelism = 10 }, (keyValue) =>
+                Parallel.ForEach(PartThreading, new ParallelOptions { MaxDegreeOfParallelism = 1 }, (keyValue) =>
                 {
                     logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}]", keyValue.Key, pageParentURLMapping.Count);
 
 
-                    var _driver = new RemoteWebDriver(_options.RemoteHubUrl, DesiredCapabilities.Chrome()); // instead of this url you can put the url of your remote hub
-                        
+                    var _driver = new RemoteWebDriver(_options.RemoteHubUrl, options.ToCapabilities()); // instead of this url you can put the url of your remote hub
+
                     _driver.Navigate().GoToUrl(keyValue.Key);
 
                     SaveHtmlAndScreenShot(keyValue.Key, _driver);
@@ -73,7 +78,7 @@ namespace Seo.Crawler.Service
                     GetUnvisitedLinks(_driver, keyValue.Key);
                     _driver.Quit();
                     Uri value;
-                        
+                    _driver.Dispose();    
                     logger.Info("Concurrent List add " + pageParentURLMapping.TryAdd(keyValue.Key, keyValue.Value));
                 });
 
@@ -184,7 +189,8 @@ namespace Seo.Crawler.Service
                 var removeScriptTag =
                     "Array.prototype.slice.call(document.getElementsByTagName('script')).forEach(function(item) { item.parentNode.removeChild(item);});";
                 var addClassToBody = "document.getElementsByTagName('body')[0].className += ' seoPrerender';";
-                _driver.ExecuteScript(removeScriptTag + addClassToBody);
+
+                _driver.ExecuteScript(removeScriptTag + addClassToBody);   
                 //uri.AbsolutePath is relative url
                 var result = _driver.PageSource;
                 string filenameWithPath = _options.FolderPath + uri.AbsolutePath + MakeValidFileName(uri.Query);
