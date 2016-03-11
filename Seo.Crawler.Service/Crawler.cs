@@ -21,9 +21,9 @@ namespace Seo.Crawler.Service
         private CrawlerOptions _options;
         private Stopwatch _watch;
         private Logger logger;
-        private static ConcurrentDictionary<Uri, Uri> pageParentURLMapping; // Key is current Page,Content is parent Page
+        private ConcurrentDictionary<Uri, Uri> pageParentURLMapping; // Key is current Page,Content is parent Page
         private int _maxThread = 10;
-        private static ConcurrentDictionary<Uri, Uri> pagesToVisit;
+        private ConcurrentDictionary<Uri, Uri> pagesToVisit;
         private List<RemoteWebDriver> WebdriverList;
         private Dictionary<Uri, Uri> PartThreading ;
         private static int CurrentTask = 0;
@@ -127,11 +127,16 @@ namespace Seo.Crawler.Service
 
                     Task task = new Task(() => 
                     {
-                        logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}] , CurrentTask : [{2}]", Key, pageParentURLMapping.Count ,CurrentTask);                        
-                        WebdriverList[CurrentTask-1].Navigate().GoToUrl(Key);
-                        SaveHtmlAndScreenShot(Key, WebdriverList[CurrentTask-1]);
+                        logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}] , CurrentTask : [{2}]", Key, pageParentURLMapping.Count ,CurrentTask);
 
-                        GetUnvisitedLinks(WebdriverList[CurrentTask - 1], Key, WebdriverList[CurrentTask - 1].Url);
+                        lock (WebdriverList[CurrentTask - 1])
+                        {
+                            WebdriverList[CurrentTask - 1].Navigate().GoToUrl(Key);
+                            SaveHtmlAndScreenShot(Key, WebdriverList[CurrentTask - 1]);
+
+                            GetUnvisitedLinks(WebdriverList[CurrentTask - 1], Key, WebdriverList[CurrentTask - 1].Url);     
+                        }
+                       
                         logger.Info("Concurrent List add " + pageParentURLMapping.TryAdd(Key, PartThreading[Key]));                        
                     });
                     GetNextNumber();
