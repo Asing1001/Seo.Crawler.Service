@@ -37,6 +37,13 @@ namespace Seo.Crawler.Service
             get { return (Uri)this["RemoteHubUrl"]; }
         }
 
+
+        [ConfigurationProperty("MaxThread")]
+        public int MaxThread
+        {
+            get { return (int)this["MaxThread"]; }
+        }
+
         public override string ToString()
         {
             return string.Format(

@@ -22,7 +22,7 @@ namespace Seo.Crawler.Service
             writer.Formatting = Formatting.Indented;
         }
 
-        public void Generate(HashSet<Uri> links)
+        public void Generate(List<Uri> links)
         {
             WriteStartDocument();
             foreach (var link in links)

@@ -9,8 +9,18 @@ using ClosedXML.Excel;
 
 namespace Seo.Crawler.Selenium
 {
+    public class PageInfoToExcel
+    {
+        public string LogCount { get; set; }
+        public string Error { get; set; }
+        public string SourceURL { get; set; }
+        public string NotFound { get; set; }
+        
+    
+    }
     public class ExcelHandler
     {
+        
         public static DataTable LoadDataTable(string filePath, string sql, string tableName)
         {
             OleDbConnection conn = new OleDbConnection(@"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + filePath + ";Extended Properties='Excel 12.0 Xml;HDR=YES'");

@@ -12,6 +12,9 @@ using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Remote;
 using System.Threading.Tasks;
+using System.Data;
+using OpenQA.Selenium;
+using Seo.Crawler.Selenium;
 
 namespace Seo.Crawler.Service
 {
@@ -21,23 +24,25 @@ namespace Seo.Crawler.Service
         private CrawlerOptions _options;
         private Stopwatch _watch;
         private Logger logger;
-        private ConcurrentDictionary<Uri, Uri> pageParentURLMapping; // Key is current Page,Content is parent Page
-        private int _maxThread = 10;
+        private ConcurrentDictionary<Uri, Uri> pageVisitedURLMapping; // Key is current Page,Content is parent Page
+        
         private ConcurrentDictionary<Uri, Uri> pagesToVisit;
         private List<RemoteWebDriver> WebdriverList;
-        private Dictionary<Uri, Uri> PartThreading ;
+        private ConcurrentDictionary<Uri, Uri> PartThreading;
+        private ConcurrentDictionary<Uri, PageInfoToExcel> pageNotFoundMapping;
         private static int CurrentTask = 0;
         public Crawler(CrawlerOptions options)
         {
             _options = options;
-            pageParentURLMapping = new ConcurrentDictionary<Uri, Uri>();
+            pageVisitedURLMapping = new ConcurrentDictionary<Uri, Uri>();
             pagesToVisit = new ConcurrentDictionary<Uri,Uri>();
             _watch = new Stopwatch();
             logger = LogManager.GetCurrentClassLogger();
-            PartThreading = new Dictionary<Uri, Uri>();
+            pageNotFoundMapping = new ConcurrentDictionary<Uri, PageInfoToExcel>();
+            PartThreading = new ConcurrentDictionary<Uri, Uri>();
 
             WebdriverList = new List<RemoteWebDriver>();
-            for (int i = 0; i < _maxThread; i++)
+            for (int i = 0; i < _options.MaxThread; i++)
             {
                 ChromeOptions chromeOptions = new ChromeOptions();
                 //chromeOptions.AddArgument("user-data-dir=C:/Debug/" + i);
@@ -78,7 +83,7 @@ namespace Seo.Crawler.Service
                 logger.Info(" Starting Parallel : [{0}] , pageToVisit : [{1}]", PartThreading.Count, pagesToVisit.Count);
                 Parallel.ForEach(PartThreading, new ParallelOptions { MaxDegreeOfParallelism = 1 }, (keyValue) =>
                 {
-                    logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}]", keyValue.Key, pageParentURLMapping.Count);
+                    logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}]", keyValue.Key, pageVisitedURLMapping.Count);
 
 
                     var _driver = new RemoteWebDriver(_options.RemoteHubUrl, options.ToCapabilities()); // instead of this url you can put the url of your remote hub
@@ -91,11 +96,11 @@ namespace Seo.Crawler.Service
                     _driver.Quit();
                     Uri value;
                     _driver.Dispose();    
-                    logger.Info("Concurrent List add " + pageParentURLMapping.TryAdd(keyValue.Key, keyValue.Value));
+                    logger.Info("Concurrent List add " + pageVisitedURLMapping.TryAdd(keyValue.Key, keyValue.Value));
                 });
 
 
-                logger.Info("Finish Parallel  Finish Size: " + pageParentURLMapping.Count);
+                logger.Info("Finish Parallel  Finish Size: " + pageVisitedURLMapping.Count);
                 if (pagesToVisit.Count == 0)
                 {
                     Thread.Sleep(1000);
@@ -108,13 +113,12 @@ namespace Seo.Crawler.Service
             while (true && pagesToVisit.Count > 0)
             {
 
-                PartThreading = new Dictionary<Uri, Uri>();
-                List<Uri> PartThreadingUri = new List<Uri>();
+                PartThreading = new ConcurrentDictionary<Uri, Uri>();
                 logger.Info(" Page Visit Size :{0}", pagesToVisit.Count);
                 foreach (var pTV in pagesToVisit)
                 {
-                    PartThreadingUri.Add(pTV.Key);
-                    PartThreading.Add(pTV.Key, pTV.Value);
+
+                    PartThreading.TryAdd(pTV.Key, pTV.Value);
                     Uri value;
                     pagesToVisit.TryRemove(pTV.Key, out value);
                 }
@@ -127,7 +131,7 @@ namespace Seo.Crawler.Service
 
                     Task task = new Task(() => 
                     {
-                        logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}] , CurrentTask : [{2}]", Key, pageParentURLMapping.Count ,CurrentTask);
+                        logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}] , CurrentTask : [{2}]", Key, pageVisitedURLMapping.Count ,CurrentTask);
 
                         lock (WebdriverList[CurrentTask - 1])
                         {
@@ -137,13 +141,13 @@ namespace Seo.Crawler.Service
                             GetUnvisitedLinks(WebdriverList[CurrentTask - 1], Key, WebdriverList[CurrentTask - 1].Url);     
                         }
                        
-                        logger.Info("Concurrent List add " + pageParentURLMapping.TryAdd(Key, PartThreading[Key]));                        
+                        logger.Info("Concurrent List add " + pageVisitedURLMapping.TryAdd(Key, PartThreading[Key]));                        
                     });
                     GetNextNumber();
                     task.Start();
                     logger.Info("CurrentTask : " +  CurrentTask);
                     waitHandles.Add(task);
-                    if(waitHandles.Count == _maxThread)
+                    if (waitHandles.Count == _options.MaxThread)
                     {
                         Task.WaitAll(waitHandles.ToArray());
                         waitHandles = new List<Task>();
@@ -161,7 +165,7 @@ namespace Seo.Crawler.Service
                 logger.Debug("Next Round Page to Visit :" + pagesToVisit.Count);
             }
 
-            logger.Info(" [Finish] PageToVisitSize :[{0}] ,Page Finish Size : [{1}]", pagesToVisit.Count, pageParentURLMapping.Count);
+            logger.Info(" [Finish] PageToVisitSize :[{0}] ,Page Finish Size : [{1}]", pagesToVisit.Count, pageVisitedURLMapping.Count);
             Finish();
 
         }
@@ -209,7 +213,7 @@ namespace Seo.Crawler.Service
 
             foreach (var link in links)
             {
-                if (link != null && link.Host.Contains(originHost) && !pageParentURLMapping.ContainsKey(link)
+                if (link != null && link.Host.Contains(originHost) && !pageVisitedURLMapping.ContainsKey(link)
                     && !pagesToVisit.ContainsKey(link) && !PartThreading.ContainsKey(link) && !result.Contains(link))
                 {
                     result.Add(link );
@@ -229,33 +233,31 @@ namespace Seo.Crawler.Service
 
         }
 
-        private void ValidatePage(RemoteWebDriver _driver ,Uri currentUri)
+        private void ValidatePage(RemoteWebDriver _driver ,Uri currentUri ,Uri parentUri)
         {
+            PageInfoToExcel pageInfo = new PageInfoToExcel();
 
-           /* DataRow drRow = pagesErrorList.NewRow();
-            drRow["URL"] = currentUri.AbsolutePath;
             List<LogEntry> logEntry = _driver.Manage().Logs.GetLog(LogType.Browser).ToList();
             Boolean ValidateFailed = false;
 
             if (_driver.PageSource.Contains("Error 404") || _driver.PageSource.Contains("404") || _driver.PageSource.ToLower().Contains("not found"))
             {
-                drRow["NotFound"] = " Page Not Found";
+                pageInfo.NotFound= " Page Not Found";
                 ValidateFailed = true;
             }
             if (logEntry.Count > 0)
             {
 
-                drRow["LogCount"] = logEntry.Count.ToString();
-                drRow["Error"] += string.Join(" , ", logEntry.Where(log => !log.Message.Contains("$modal is now deprecated. Use $uibModal instead.")).Select(log => log.Message).ToList());
+                pageInfo.LogCount = logEntry.Count.ToString();
+                pageInfo.Error += string.Join(" , ", logEntry.Where(log => !log.Message.Contains("$modal is now deprecated. Use $uibModal instead.")).Select(log => log.Message).ToList());
                 ValidateFailed = true;
             }
             if (ValidateFailed)
             {
-                drRow["SourceURL"] = pageParentURLMapping.ContainsKey(currentUri.AbsolutePath) ? pageParentURLMapping[currentUri.AbsolutePath] : "";
-                pagesErrorList.Rows.Add(drRow);
+                pageInfo.SourceURL = parentUri.ToString();
+                pageNotFoundMapping.TryAdd(currentUri, pageInfo);
             }
-            if (pageParentURLMapping.Count > 0)
-                pageParentURLMapping.Remove(currentUri.AbsoluteUri);*/
+
         }
 
         private void SaveHtmlAndScreenShot(Uri uri, RemoteWebDriver _driver)
@@ -297,7 +299,7 @@ namespace Seo.Crawler.Service
                 using (var fileStream = new FileStream(sitemapPath, FileMode.Create))
                 {
                     var siteMapGenerator = new SiteMapGenerator(fileStream, Encoding.UTF8);
-                    //siteMapGenerator.Generate(pagesVisited);
+                    siteMapGenerator.Generate(pageVisitedURLMapping.Keys.ToList());
                     siteMapGenerator.Close();
                 }
                 logger.Info("SiteMap save to {0}", sitemapPath);
