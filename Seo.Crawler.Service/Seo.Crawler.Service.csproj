@@ -70,6 +70,7 @@
   <ItemGroup>
     <Compile Include="Crawler.cs" />
     <Compile Include="CrawlerOptions.cs" />
+    <Compile Include="ExcelHandler.cs" />
     <Compile Include="ProjectInstaller.cs">
       <SubType>Component</SubType>
     </Compile>
