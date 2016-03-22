@@ -45,7 +45,7 @@ namespace Seo.Crawler.Service
             for (int i = 0; i < _options.MaxThread; i++)
             {
                 ChromeOptions chromeOptions = new ChromeOptions();
-                //chromeOptions.AddArgument("user-data-dir=C:/Debug/" + i);
+                chromeOptions.AddArgument("user-data-dir=C:/Debug/" + i);
                 var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
                 
                 WebdriverList.Add(_driver);
@@ -64,53 +64,36 @@ namespace Seo.Crawler.Service
             
             pagesToVisit.TryAdd(uri, null);//First Page
 
-            /*while (true)
+            while (true && pagesToVisit.Count > 0)
             {
-                PartThreading = new Dictionary<Uri, Uri>();
-                logger.Info(" Page Visit Size :{0}", pagesToVisit.Count);                    
+
+                PartThreading = new ConcurrentDictionary<Uri, Uri>();
+                logger.Info(" Page Visit Size :{0}", pagesToVisit.Count);
                 foreach (var pTV in pagesToVisit)
                 {
-                    PartThreading.Add(pTV.Key,pTV.Value);
+
+                    PartThreading.TryAdd(pTV.Key, pTV.Value);
                     Uri value;
                     pagesToVisit.TryRemove(pTV.Key, out value);
                 }
 
-                ChromeOptions options = new ChromeOptions();
-                
-                options.AddArgument("user-data-dir=C:/Debug");
+                List<Task> waitHandles = new List<Task>();
 
-                //Thread.Sleep(1000);
-                logger.Info(" Starting Parallel : [{0}] , pageToVisit : [{1}]", PartThreading.Count, pagesToVisit.Count);
-                Parallel.ForEach(PartThreading, new ParallelOptions { MaxDegreeOfParallelism = 1 }, (keyValue) =>
+
+                foreach (var Key in PartThreading.Keys)
                 {
-                    logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}]", keyValue.Key, pageVisitedURLMapping.Count);
 
-
-                    var _driver = new RemoteWebDriver(_options.RemoteHubUrl, options.ToCapabilities()); // instead of this url you can put the url of your remote hub
-
-                    _driver.Navigate().GoToUrl(keyValue.Key);
-
-                    SaveHtmlAndScreenShot(keyValue.Key, _driver);
-
-                    GetUnvisitedLinks(_driver, keyValue.Key);
-                    _driver.Quit();
-                    Uri value;
-                    _driver.Dispose();    
-                    logger.Info("Concurrent List add " + pageVisitedURLMapping.TryAdd(keyValue.Key, keyValue.Value));
-                });
-
-
-                logger.Info("Finish Parallel  Finish Size: " + pageVisitedURLMapping.Count);
-                if (pagesToVisit.Count == 0)
-                {
-                    Thread.Sleep(1000);
-                    break;
+                    
+                    logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}] , CurrentTask : [{2}]", Key, pageVisitedURLMapping.Count, CurrentTask);
+                    WebdriverList[CurrentTask - 1].Navigate().GoToUrl(Key);
+                    SaveHtmlAndScreenShot(Key, WebdriverList[CurrentTask - 1]);
+                    GetUnvisitedLinks(WebdriverList[CurrentTask - 1], Key, WebdriverList[CurrentTask - 1].Url);
+                    logger.Info("Concurrent List add " + pageVisitedURLMapping.TryAdd(Key, PartThreading[Key]));
                 }
-                
-                
-            }*/
+                logger.Debug("Next Round Page to Visit :" + pagesToVisit.Count);
+            }
 
-            while (true && pagesToVisit.Count > 0)
+            /*while (true && pagesToVisit.Count > 0)
             {
 
                 PartThreading = new ConcurrentDictionary<Uri, Uri>();
@@ -163,7 +146,7 @@ namespace Seo.Crawler.Service
                     CurrentTask = 0;
                 }
                 logger.Debug("Next Round Page to Visit :" + pagesToVisit.Count);
-            }
+            }*/
 
             logger.Info(" [Finish] PageToVisitSize :[{0}] ,Page Finish Size : [{1}]", pagesToVisit.Count, pageVisitedURLMapping.Count);
             Finish();
