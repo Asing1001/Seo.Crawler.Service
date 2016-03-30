@@ -43,6 +43,11 @@ namespace Seo.Crawler.Service
         {
             get { return (int)this["MaxThread"]; }
         }
+        [ConfigurationProperty("Languages")]
+        public string Languages
+        {
+            get { return (string)this["Languages"]; }
+        }
 
         public override string ToString()
         {

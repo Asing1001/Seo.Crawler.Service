@@ -21,27 +21,27 @@ namespace Seo.Crawler.Service
     public class Crawler
     {
         //private RemoteWebDriver _driver;
-        private CrawlerOptions _options;
+        private static CrawlerOptions _options;
         private Stopwatch _watch;
-        private Logger logger;
-        private ConcurrentDictionary<Uri, Uri> pageVisitedURLMapping; // Key is current Page,Content is parent Page
+        private static Logger logger;
+        private static ConcurrentDictionary<Uri, Uri> pageVisitedURLMapping; // Key is current Page,Content is parent Page
         
-        private ConcurrentDictionary<Uri, Uri> pagesToVisit;
+        //private ConcurrentDictionary<Uri, Uri> pagesToVisit;
         private List<RemoteWebDriver> WebdriverList;
-        private ConcurrentDictionary<Uri, Uri> PartThreading;
+        //private ConcurrentDictionary<Uri, Uri> PartThreading;
         private ConcurrentDictionary<Uri, PageInfoToExcel> pageNotFoundMapping;
         private static int CurrentTask = 0;
         public Crawler(CrawlerOptions options)
         {
             _options = options;
             pageVisitedURLMapping = new ConcurrentDictionary<Uri, Uri>();
-            pagesToVisit = new ConcurrentDictionary<Uri,Uri>();
+            //pagesToVisit = new ConcurrentDictionary<Uri,Uri>();
             _watch = new Stopwatch();
             logger = LogManager.GetCurrentClassLogger();
             pageNotFoundMapping = new ConcurrentDictionary<Uri, PageInfoToExcel>();
-            PartThreading = new ConcurrentDictionary<Uri, Uri>();
+            //PartThreading = new ConcurrentDictionary<Uri, Uri>();
 
-            WebdriverList = new List<RemoteWebDriver>();
+            /*WebdriverList = new List<RemoteWebDriver>();
             for (int i = 0; i < _options.MaxThread; i++)
             {
                 ChromeOptions chromeOptions = new ChromeOptions();
@@ -49,20 +49,76 @@ namespace Seo.Crawler.Service
                 var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
                 
                 WebdriverList.Add(_driver);
-            }
+            }*/
         }
 
 
         public void Start()
         {
             _watch.Start();
-            Crawl(_options.StartUrl);
+            //Crawl(_options.StartUrl);
+            CrawlByLanguage(_options.Languages, _options.StartUrl);
         }
+
+        private void CrawlByLanguage(string Languages,Uri uri )
+        {
+            List<string> LanguageMapping = Languages.Split(';').ToList();
+            List<Task> TaskList = new List<Task>();
+            foreach (var Lan in LanguageMapping)
+            {
+                TaskList.Add(Task.Run(()=>CrawlPage( new Uri(uri.AbsoluteUri + Lan) )));
+            }
+            Task.WaitAll(TaskList.ToArray());
+
+        }
+
+
+        public static void CrawlPage(Uri startUrl)
+        {
+
+            
+            ConcurrentDictionary<Uri, Uri> pageToVisit = new ConcurrentDictionary<Uri, Uri>();
+            pageToVisit.TryAdd(startUrl, null);
+            ChromeOptions chromeOptions = new ChromeOptions();  
+            var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
+
+            ConcurrentDictionary<Uri, Uri> PartThreading;
+            while (true && pageToVisit.Count > 0)
+            {
+                PartThreading = new ConcurrentDictionary<Uri, Uri>();
+                logger.Info(" Page Visit Size :{0}", pageToVisit.Count);
+                foreach (var pTV in pageToVisit)
+                {
+
+                    PartThreading.TryAdd(pTV.Key, pTV.Value);
+                    Uri value;
+                    pageToVisit.TryRemove(pTV.Key, out value);
+                }
+
+               
+
+                foreach (var Key in PartThreading.Keys)
+                {
+
+
+                    
+                    _driver.Navigate().GoToUrl(Key);
+                    SaveHtmlAndScreenShot(Key, _driver);
+                    pageToVisit = GetUnvisitedLinks(_driver, Key, _driver.Url, PartThreading, pageToVisit, startUrl);
+                    
+                }
+                
+            } 
+            
+            
+        }
+
+
 
         private void Crawl(Uri uri)
         {
-            
-            pagesToVisit.TryAdd(uri, null);//First Page
+            #region single thread
+            /*pagesToVisit.TryAdd(uri, null);//First Page
 
             while (true && pagesToVisit.Count > 0)
             {
@@ -85,70 +141,17 @@ namespace Seo.Crawler.Service
 
                     
                     logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}] , CurrentTask : [{2}]", Key, pageVisitedURLMapping.Count, CurrentTask);
-                    WebdriverList[CurrentTask - 1].Navigate().GoToUrl(Key);
-                    SaveHtmlAndScreenShot(Key, WebdriverList[CurrentTask - 1]);
-                    GetUnvisitedLinks(WebdriverList[CurrentTask - 1], Key, WebdriverList[CurrentTask - 1].Url);
+                    WebdriverList[CurrentTask ].Navigate().GoToUrl(Key);
+                    SaveHtmlAndScreenShot(Key, WebdriverList[CurrentTask ]);
+                    GetUnvisitedLinks(WebdriverList[CurrentTask ], Key, WebdriverList[CurrentTask].Url);
                     logger.Info("Concurrent List add " + pageVisitedURLMapping.TryAdd(Key, PartThreading[Key]));
                 }
                 logger.Debug("Next Round Page to Visit :" + pagesToVisit.Count);
-            }
+            } */
+            #endregion
+            
 
-            /*while (true && pagesToVisit.Count > 0)
-            {
-
-                PartThreading = new ConcurrentDictionary<Uri, Uri>();
-                logger.Info(" Page Visit Size :{0}", pagesToVisit.Count);
-                foreach (var pTV in pagesToVisit)
-                {
-
-                    PartThreading.TryAdd(pTV.Key, pTV.Value);
-                    Uri value;
-                    pagesToVisit.TryRemove(pTV.Key, out value);
-                }
-
-                List<Task> waitHandles = new List<Task>();
-
-
-                foreach (var Key in PartThreading.Keys)
-                {
-
-                    Task task = new Task(() => 
-                    {
-                        logger.Info(" PageToVisit :[{0}] ,Page Finish Size : [{1}] , CurrentTask : [{2}]", Key, pageVisitedURLMapping.Count ,CurrentTask);
-
-                        lock (WebdriverList[CurrentTask - 1])
-                        {
-                            WebdriverList[CurrentTask - 1].Navigate().GoToUrl(Key);
-                            SaveHtmlAndScreenShot(Key, WebdriverList[CurrentTask - 1]);
-
-                            GetUnvisitedLinks(WebdriverList[CurrentTask - 1], Key, WebdriverList[CurrentTask - 1].Url);     
-                        }
-                       
-                        logger.Info("Concurrent List add " + pageVisitedURLMapping.TryAdd(Key, PartThreading[Key]));                        
-                    });
-                    GetNextNumber();
-                    task.Start();
-                    logger.Info("CurrentTask : " +  CurrentTask);
-                    waitHandles.Add(task);
-                    if (waitHandles.Count == _options.MaxThread)
-                    {
-                        Task.WaitAll(waitHandles.ToArray());
-                        waitHandles = new List<Task>();
-                        CurrentTask = 0;
-                    }
-
-                }
-                if (waitHandles.Count != 0)
-                {
-                    
-                    Task.WaitAll(waitHandles.ToArray());
-                    waitHandles = new List<Task>();
-                    CurrentTask = 0;
-                }
-                logger.Debug("Next Round Page to Visit :" + pagesToVisit.Count);
-            }*/
-
-            logger.Info(" [Finish] PageToVisitSize :[{0}] ,Page Finish Size : [{1}]", pagesToVisit.Count, pageVisitedURLMapping.Count);
+            //logger.Info(" [Finish] PageToVisitSize :[{0}] ,Page Finish Size : [{1}]", pagesToVisit.Count, pageVisitedURLMapping.Count);
             Finish();
 
         }
@@ -173,9 +176,9 @@ namespace Seo.Crawler.Service
             logger.Info("Finish all task in {0}", _watch.Elapsed);
         }
 
-       
 
-        private void GetUnvisitedLinks(RemoteWebDriver _driver ,Uri parentUri,string DriverUri)
+
+        private static ConcurrentDictionary<Uri, Uri> GetUnvisitedLinks(RemoteWebDriver _driver, Uri parentUri, string DriverUri, ConcurrentDictionary<Uri, Uri> PartThreading, ConcurrentDictionary<Uri, Uri> pageToVist,Uri startUri)
         {
             
             var result = new List<Uri>();
@@ -196,8 +199,8 @@ namespace Seo.Crawler.Service
 
             foreach (var link in links)
             {
-                if (link != null && link.Host.Contains(originHost) && !pageVisitedURLMapping.ContainsKey(link)
-                    && !pagesToVisit.ContainsKey(link) && !PartThreading.ContainsKey(link) && !result.Contains(link))
+                if (link != null && link.AbsoluteUri.Contains(startUri.AbsoluteUri) && !pageVisitedURLMapping.ContainsKey(link)
+                    && !pageToVist.ContainsKey(link) && !PartThreading.ContainsKey(link) && !result.Contains(link))
                 {
                     result.Add(link );
                 }
@@ -205,14 +208,14 @@ namespace Seo.Crawler.Service
 
             foreach(var r in result)
             {
-                pagesToVisit.TryAdd(r,parentUri);
+                pageToVist.TryAdd(r, parentUri);
 
             }
 
-            logger.Info("Get [{0}] sameDomainUnvisitedLinks, Size :[{1}] should be the same , Current URL : [{2}]", result.Count, pagesToVisit.Count, parentUri
+            logger.Info("Get [{0}] sameDomainUnvisitedLinks, Size :[{1}] should be the same , Current URL : [{2}]", result.Count, pageToVist.Count, parentUri
                 
                 );
-            //return result;
+            return pageToVist;
 
         }
 
@@ -243,7 +246,7 @@ namespace Seo.Crawler.Service
 
         }
 
-        private void SaveHtmlAndScreenShot(Uri uri, RemoteWebDriver _driver)
+        private static void SaveHtmlAndScreenShot(Uri uri, RemoteWebDriver _driver)
         {
             try
             {
@@ -266,7 +269,7 @@ namespace Seo.Crawler.Service
             }
         }
 
-        private string MakeValidFileName(string name)
+        private static string MakeValidFileName(string name)
         {
             string invalidChars = System.Text.RegularExpressions.Regex.Escape(new string(Path.GetInvalidFileNameChars()));
             string invalidRegStr = string.Format(@"([{0}]*\.+$)|([{0}]+)", invalidChars);

@@ -24,19 +24,25 @@ namespace Seo.Crawler.Service
         protected override void OnStart(string[] args)
         {
             _timer = new Timer();
+            _timer.AutoReset = false;
             _timer.Elapsed += Timer_Elapsed;
-            _timer.Interval =10 * 1000;
             _timer.Start();
+            
         }
 
         private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
             try
             {
+                
                 var options = System.Configuration.ConfigurationManager.GetSection("CrawlerOptions") as CrawlerOptions;
                 logger.Info("Config is {0}", options);
                 var crawler = new Crawler(options);
                 crawler.Start();
+                _timer.Stop();
+                _timer.Interval = 60*60*1000*12; //Set your new interval here
+                _timer.Start();
+                
             }
             catch (Exception ex)
             {
@@ -44,39 +50,9 @@ namespace Seo.Crawler.Service
             }
            
 
-            logger.Debug("start debug");
-            Thread oThreadA = new Thread(new ThreadStart(StartOpenPage));
-            oThreadA.Name = "A Thread";
-            Thread oThreadB = new Thread(new ThreadStart(StartOpenPage));
-            oThreadB.Name = "B Thread";
-            Thread oThreadC = new Thread(new ThreadStart(StartOpenPage));
-            oThreadC.Name = "C Thread";
-            Thread oThreadD = new Thread(new ThreadStart(StartOpenPage));
-            oThreadD.Name = "D Thread";
-            Thread oThreadE = new Thread(new ThreadStart(StartOpenPage));
-            oThreadE.Name = "E Thread";
-
-            //啟動執行緒物件
-            oThreadA.Start();
-            oThreadB.Start();
-            oThreadC.Start();
-            oThreadD.Start();
-            oThreadE.Start();
+        
         }
 
-        private void StartOpenPage()
-        {
-
-            EventLog myLog = new EventLog();
-            myLog.Source = "TESTS111";
-            logger.Debug("start open");
-            // Write an informational entry to the event log.    
-            myLog.WriteEntry("Writing to event log.");
-            var driver = new RemoteWebDriver(new Uri("http://localhost:4500/wd/hub"), DesiredCapabilities.Chrome()); // instead of this url you can put the url of your remote hub
-                driver.Navigate().GoToUrl("http://www.google.com.tw");
-                driver.Quit();
-            
-        }
 
         protected override void OnStop()
         {
