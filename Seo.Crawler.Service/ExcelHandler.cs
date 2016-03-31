@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.OleDb;
@@ -53,5 +54,23 @@ namespace Seo.Crawler.Selenium
             return dtDataTable;
         }
 
+        public static DataTable ConvertClassToTable(ConcurrentDictionary<Uri, PageInfoToExcel> pageNotFoundMapping)
+        {
+            DataTable dt = new DataTable();
+            dt = InitTable(dt);
+
+            foreach (var Keys in pageNotFoundMapping.Keys)
+            {
+                DataRow drRow = dt.NewRow();
+
+                drRow["LogCount"] = pageNotFoundMapping[Keys].LogCount;
+                drRow["NotFound"] = pageNotFoundMapping[Keys].NotFound;
+                drRow["Error"] = pageNotFoundMapping[Keys].Error;
+                drRow["SourceURL"] = pageNotFoundMapping[Keys].SourceURL;
+                drRow["URL"] = Keys;
+                dt.Rows.Add(drRow);
+            }
+            return dt;
+        }
     }
 }

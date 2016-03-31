@@ -38,15 +38,16 @@ namespace Seo.Crawler.Service
         }
 
 
-        [ConfigurationProperty("MaxThread")]
-        public int MaxThread
-        {
-            get { return (int)this["MaxThread"]; }
-        }
         [ConfigurationProperty("Languages")]
         public string Languages
         {
             get { return (string)this["Languages"]; }
+        }
+
+        [ConfigurationProperty("Name")]
+        public string Name
+        {
+            get { return (string)this["Name"]; }
         }
 
         public override string ToString()

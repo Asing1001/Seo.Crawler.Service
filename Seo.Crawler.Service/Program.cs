@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ServiceProcess;
+using DocumentFormat.OpenXml.Office2010.ExcelAc;
 using NLog;
 
 namespace Seo.Crawler.Service
@@ -27,9 +29,16 @@ namespace Seo.Crawler.Service
                 // Startup as application
                 try
                 {
-                    var options = System.Configuration.ConfigurationManager.GetSection("CrawlerOptions") as CrawlerOptions;
-                    logger.Info("Config is {0}", options);
+
+                    var options = System.Configuration.ConfigurationManager.GetSection("WebCrawlerOptions") as CrawlerOptions;
+                    logger.Info(options.Name +  " Config is {0}", options);
                     var crawler = new Crawler(options);
+                    crawler.Start();
+
+
+                    options = System.Configuration.ConfigurationManager.GetSection("MobileCrawlerOptions") as CrawlerOptions;
+                    logger.Info(options.Name + " Config is {0}", options);
+                    crawler = new Crawler(options);
                     crawler.Start();
                 }
                 catch (Exception ex)

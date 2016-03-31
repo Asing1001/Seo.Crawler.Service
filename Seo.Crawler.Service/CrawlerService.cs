@@ -34,13 +34,19 @@ namespace Seo.Crawler.Service
         {
             try
             {
-                
-                var options = System.Configuration.ConfigurationManager.GetSection("CrawlerOptions") as CrawlerOptions;
-                logger.Info("Config is {0}", options);
+
+                var options = System.Configuration.ConfigurationManager.GetSection("WebCrawlerOptions") as CrawlerOptions;
+                logger.Info(options.Name + " Config is {0}", options);
                 var crawler = new Crawler(options);
                 crawler.Start();
+
+
+                options = System.Configuration.ConfigurationManager.GetSection("MobileCrawlerOptions") as CrawlerOptions;
+                logger.Info(options.Name + " Config is {0}", options);
+                crawler = new Crawler(options);
+                crawler.Start();
                 _timer.Stop();
-                _timer.Interval = 60*60*1000*12; //Set your new interval here
+                _timer.Interval = 60*60*1000*6; //Set your new interval here
                 _timer.Start();
                 
             }
