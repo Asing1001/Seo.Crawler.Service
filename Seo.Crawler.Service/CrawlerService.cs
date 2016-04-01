@@ -36,17 +36,26 @@ namespace Seo.Crawler.Service
             {
 
                 var options = System.Configuration.ConfigurationManager.GetSection("WebCrawlerOptions") as CrawlerOptions;
-                logger.Info(options.Name + " Config is {0}", options);
-                var crawler = new Crawler(options);
-                crawler.Start();
-
-
+                if (options.Run)
+                {
+                    logger.Info(options.Name + " Config is {0}", options);
+                    var crawler = new Crawler(options);
+                    crawler.Start();
+                }
                 options = System.Configuration.ConfigurationManager.GetSection("MobileCrawlerOptions") as CrawlerOptions;
-                logger.Info(options.Name + " Config is {0}", options);
-                crawler = new Crawler(options);
-                crawler.Start();
+                if (options.Run)
+                {
+
+                    logger.Info(options.Name + " Config is {0}", options);
+                    var crawler = new Crawler(options);
+                    crawler.Start();
+                }
+
+                var RepeatTime = System.Configuration.ConfigurationManager.GetSection("TimeInterval") as TimeInterval;
+
+                logger.Info("[Report TimeR]" + RepeatTime.time);
                 _timer.Stop();
-                _timer.Interval = 60*60*1000*6; //Set your new interval here
+                _timer.Interval = RepeatTime.time; //Set your new interval here
                 _timer.Start();
                 
             }

@@ -1,0 +1,25 @@
+{
+  "capabilities":
+      [
+		{
+          "browserName": "chrome",
+          "maxInstances": 30,
+		  "platform": "WINDOWS"
+        }
+      ],
+    "configuration":
+        {
+        "nodeTimeout":120,
+        "port":5555,
+
+        "hubPort":4600,
+        "hubHost":"localhost",
+		"nodePolling":20000,
+
+        "registerCycle":10000,
+        "register":true,
+        "cleanUpCycle":20000,
+        "timeout":300000,
+        "maxSession":30
+        }
+}

@@ -1,12 +1,13 @@
-{"_comment" : "Configuration for Hub - hubConfig.json",
-  "maxSessions": 30,
+{
+  "host": null,
   "port": 4600,
-  "cleanupCycle": 5000,
-  "timeout": 300000,
   "newSessionWaitTimeout": -1,
-  "servlets": [],
+  "servlets" : [],
   "prioritizer": null,
   "capabilityMatcher": "org.openqa.grid.internal.utils.DefaultCapabilityMatcher",
   "throwOnCapabilityNotPresent": true,
-  "nodePolling": 180000,
-  "platform": "WINDOWS"}
+  "nodePolling": 5000,
+
+  "cleanUpCycle": 5000,
+  "timeout": 300000,
+  "maxSession": 30}

@@ -50,11 +50,29 @@ namespace Seo.Crawler.Service
             get { return (string)this["Name"]; }
         }
 
+        [ConfigurationProperty("Run")]
+        public Boolean Run
+        {
+            get { return (Boolean)this["Run"]; }
+        }
+
         public override string ToString()
         {
             return string.Format(
-                "FolderPath:{0}, UserAgent:{1}, MaxPageToVisit:{2}, StartUrl:{3}",
-                FolderPath, UserAgent, MaxPageToVisit, StartUrl);
+                "FolderPath:{0}, UserAgent:{1}, MaxPageToVisit:{2}, StartUrl:{3} ,Run:{4},Name:{5}",
+                FolderPath, UserAgent, MaxPageToVisit, StartUrl,Run,Name);
         }
+    }
+
+    public class TimeInterval : ConfigurationSection
+    {
+
+        [ConfigurationProperty("time")]
+        public double time
+        {
+            get { return (double)this["time"]; }
+        }
+
+       
     }
 }
