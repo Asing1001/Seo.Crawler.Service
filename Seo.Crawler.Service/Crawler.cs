@@ -41,6 +41,8 @@ namespace Seo.Crawler.Service
         {
             _watch.Start();
             CrawlByLanguage(_options.Languages, _options.StartUrl);
+            
+            Finish();
         }
 
         private void CrawlByLanguage(string Languages,Uri uri )
@@ -53,7 +55,7 @@ namespace Seo.Crawler.Service
                     TaskList.Add(Task.Run(()=>CrawlPage( new Uri(uri.AbsoluteUri + Lan) )));
             }
             Task.WaitAll(TaskList.ToArray());
-            Finish();
+           
         }
 
 
@@ -113,9 +115,14 @@ namespace Seo.Crawler.Service
         {
             
             SaveSitemap();
+
+            CompareLinks();
+            
+
+            ExcelHandler.DataTableToExcel(_options.FolderPath + "\\" + _options.Name+"AllLinksTable" + DateTime.Now.ToString("yyyymmddHHMMss") + ".xlsx", ExcelHandler.LinkToDatatTable(pageVisitedURLMapping), "Sheet1");
             _watch.Stop();
             ExcelHandler.DataTableToExcel(_options.FolderPath + "\\PageNonValidateList.xlsx", ExcelHandler.ConvertClassToTable(pageNotFoundMapping));
-            logger.Info(_options.Name +  "Finish all task in {0}", _watch.Elapsed);
+            logger.Info(_options.Name +  " Finish all task in {0}", _watch.Elapsed);
         }
 
 
@@ -237,5 +244,42 @@ namespace Seo.Crawler.Service
                 logger.Error(ex);
             }
         }
+
+        private static void CompareLinks()
+        {
+            string fileName = ExcelHandler.GetLastFileName(_options.FolderPath, _options.Name + "AllLinksTable*.xlsx");
+            if (!string.IsNullOrEmpty(fileName))
+            {
+                Dictionary<string, Object> lastParseLinks = ExcelHandler.LoadFileToDictionary(_options.FolderPath + "\\" + fileName);
+                if (lastParseLinks != null)
+                {
+                    Dictionary<string, string> differentLinksMap = new Dictionary<string, string>();
+                    foreach (var lastTimeVistLink in lastParseLinks.Keys)
+                    {
+                        if (!string.IsNullOrEmpty(lastTimeVistLink) && !pageVisitedURLMapping.ContainsKey(new Uri(lastTimeVistLink)))
+                        {
+                            differentLinksMap.Add(lastTimeVistLink, "Last Time has link");
+                        }
+
+                    }
+                    foreach (var thisTimeVistLink in pageVisitedURLMapping.Keys)
+                    {
+                        if (!lastParseLinks.ContainsKey(thisTimeVistLink.ToString()))
+                        {
+                            differentLinksMap.Add(thisTimeVistLink.ToString(), "This Time has link");
+                        }
+
+                    }
+
+                    ExcelHandler.DataTableToExcel(_options.FolderPath + "\\" + _options.Name + "Different" + DateTime.Now.ToString("yyyymmddHHMMss") + ".xlsx", ExcelHandler.DictToDatatTable(differentLinksMap), "Sheet1");
+
+                }
+            }
+            
+
+            
+        }
+
+        
     }
 }
