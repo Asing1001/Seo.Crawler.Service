@@ -89,7 +89,8 @@ namespace Seo.Crawler.Selenium
             {
                 DataRow drRow = dt.NewRow();
                 drRow["URL"] = Url.ToString();
-                drRow["SourceURL"] = allLinks[Url].ToString();
+                if (allLinks[Url] != null )
+                    drRow["SourceURL"] = allLinks[Url].ToString();
                 dt.Rows.Add(drRow);
             }
             return dt;

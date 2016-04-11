@@ -52,7 +52,11 @@ namespace Seo.Crawler.Service
             foreach (var Lan in LanguageMapping)
             {
                 if (Lan != "")
-                    TaskList.Add(Task.Run(()=>CrawlPage( new Uri(uri.AbsoluteUri + Lan) )));
+                {
+                    var NewLanguage = new Uri(uri.AbsoluteUri + Lan);
+                    TaskList.Add(Task.Run(() => CrawlPage(NewLanguage)));
+                }
+
             }
             Task.WaitAll(TaskList.ToArray());
            

@@ -32,6 +32,7 @@ namespace Seo.Crawler.Service
 
         private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
+            var RepeatTime = System.Configuration.ConfigurationManager.GetSection("TimeInterval") as TimeInterval;
             try
             {
 
@@ -51,7 +52,7 @@ namespace Seo.Crawler.Service
                     crawler.Start();
                 }
 
-                var RepeatTime = System.Configuration.ConfigurationManager.GetSection("TimeInterval") as TimeInterval;
+                RepeatTime = System.Configuration.ConfigurationManager.GetSection("TimeInterval") as TimeInterval;
 
                 logger.Info("[Report TimeR]" + RepeatTime.time);
                 _timer.Stop();
@@ -62,6 +63,10 @@ namespace Seo.Crawler.Service
             catch (Exception ex)
             {
                 logger.Fatal(ex);
+                logger.Info("[Report TimeR]" + RepeatTime.time);
+                _timer.Stop();
+                _timer.Interval = RepeatTime.time; //Set your new interval here
+                _timer.Start();
             }
            
 
