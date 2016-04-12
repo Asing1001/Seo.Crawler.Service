@@ -27,7 +27,6 @@ namespace Seo.Crawler.Service
         private static ConcurrentDictionary<Uri, PageInfoToExcel> pageNotFoundMapping = new ConcurrentDictionary<Uri, PageInfoToExcel>();
         public Crawler(CrawlerOptions options)
         {
-
             _options = options;
             pageVisitedURLMapping = new ConcurrentDictionary<Uri, Uri>();
             _watch = new Stopwatch();
@@ -41,7 +40,6 @@ namespace Seo.Crawler.Service
         {
             _watch.Start();
             CrawlByLanguage(_options.Languages, _options.StartUrl);
-            
             Finish();
         }
 
@@ -49,8 +47,11 @@ namespace Seo.Crawler.Service
         {
             List<string> LanguageMapping = Languages.Split(';').ToList();
             List<Task> TaskList = new List<Task>();
+
+            CrawlFirstPage(uri);
             foreach (var Lan in LanguageMapping)
             {
+                
                 if (Lan != "")
                 {
                     var NewLanguage = new Uri(uri.AbsoluteUri + Lan);
@@ -62,6 +63,26 @@ namespace Seo.Crawler.Service
            
         }
 
+
+        private static void CrawlFirstPage(Uri startUrl)
+        {
+            ChromeOptions chromeOptions = new ChromeOptions();
+            var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
+            try
+            {
+                _driver.Navigate().GoToUrl(startUrl);
+                SaveHtmlAndScreenShot(startUrl, _driver);
+                pageVisitedURLMapping.TryAdd(startUrl, startUrl);
+                _driver.Close();
+                _driver.Quit();
+            }
+            catch (Exception ex)
+            {
+                logger.Info(" Thread : " + startUrl.PathAndQuery + " Error at " + ex.StackTrace);
+                _driver.Close();
+                _driver.Quit();
+            }
+        }
 
         public static void CrawlPage(Uri startUrl)
         {
@@ -77,7 +98,7 @@ namespace Seo.Crawler.Service
                 while (true && pageToVisit.Count > 0)
                 {
                     PartThreading = new ConcurrentDictionary<Uri, Uri>();
-                    logger.Info(_options.Name + " Thread : " + startUrl.PathAndQuery + " Page Visit Size :{0}", pageToVisit.Count + " SessionId" + _driver.SessionId );
+                    logger.Info(_options.Name + " Thread : " + startUrl.PathAndQuery + " Page To Visit Size :{0}", pageToVisit.Count + " SessionId" + _driver.SessionId );
                     foreach (var pTV in pageToVisit)
                     {
 
@@ -90,12 +111,13 @@ namespace Seo.Crawler.Service
                         _driver.Navigate().GoToUrl(Key);
                         SaveHtmlAndScreenShot(Key, _driver);
                         pageToVisit = GetUnvisitedLinks(_driver, Key, _driver.Url, PartThreading, pageToVisit, startUrl);
-                        logger.Info(" Thread : " + startUrl.PathAndQuery + "Concurrent List add " +
-                                    pageVisitedURLMapping.TryAdd(Key, PartThreading[Key]));
+                        pageVisitedURLMapping.TryAdd(Key, PartThreading[Key]);
+                        
+                        ValidatePage(_driver, Key, PartThreading[Key]);
+
                     }
 
-                    logger.Info(" Thread : " + startUrl.PathAndQuery + " Page Finish Visit Size :{0}",
-                        pageVisitedURLMapping.Count);
+                    logger.Info(" Thread : " + startUrl.PathAndQuery + " Page Finish Visit Size :{0}",   pageVisitedURLMapping.Count);
 
                 }
                 _driver.Close();
@@ -118,15 +140,11 @@ namespace Seo.Crawler.Service
 
         private static void Finish()
         {
-            
-            SaveSitemap();
-
             CompareLinks();
-            
-
             ExcelHandler.DataTableToExcel(_options.FolderPath + "\\" + _options.Name+"AllLinksTable" + DateTime.Now.ToString("yyyymmddHHMMss") + ".xlsx", ExcelHandler.LinkToDatatTable(pageVisitedURLMapping), "Sheet1");
-            _watch.Stop();
             ExcelHandler.DataTableToExcel(_options.FolderPath + "\\PageNonValidateList.xlsx", ExcelHandler.ConvertClassToTable(pageNotFoundMapping));
+            SaveSitemap();
+            _watch.Stop();
             logger.Info(_options.Name +  " Finish all task in {0}", _watch.Elapsed);
         }
 
@@ -169,14 +187,14 @@ namespace Seo.Crawler.Service
 
             }
 
-            logger.Info("Thead : [{3}]   Get [{0}] sameDomainUnvisitedLinks, Size :[{1}] should be the same , Current URL : [{2}]", result.Count, pageToVist.Count, parentUri ,startUri.PathAndQuery
+            logger.Info(" Thead : [{3}]   Get [{0}] sameDomainUnvisitedLinks, Size :[{1}] should be the same , Current URL : [{2}]", result.Count, pageToVist.Count, parentUri ,startUri.PathAndQuery
                 
                 );
             return pageToVist;
 
         }
 
-        private void ValidatePage(RemoteWebDriver _driver ,Uri currentUri ,Uri parentUri)
+        private static void ValidatePage(RemoteWebDriver _driver ,Uri currentUri ,Uri parentUri)
         {
             PageInfoToExcel pageInfo = new PageInfoToExcel();
 
