@@ -67,6 +67,7 @@ namespace Seo.Crawler.Service
         {
             ChromeOptions chromeOptions = new ChromeOptions();
             var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
+            
             try
             {
                 ConcurrentDictionary<Uri, Uri> pageToVisit = new ConcurrentDictionary<Uri, Uri>();
@@ -76,7 +77,7 @@ namespace Seo.Crawler.Service
                 while (true && pageToVisit.Count > 0)
                 {
                     PartThreading = new ConcurrentDictionary<Uri, Uri>();
-                    logger.Info(_options.Name + " Thread : " + startUrl.PathAndQuery + " Page Visit Size :{0}", pageToVisit.Count);
+                    logger.Info(_options.Name + " Thread : " + startUrl.PathAndQuery + " Page Visit Size :{0}", pageToVisit.Count + " SessionId" + _driver.SessionId );
                     foreach (var pTV in pageToVisit)
                     {
 
@@ -136,12 +137,15 @@ namespace Seo.Crawler.Service
             
             var result = new List<Uri>();
             var originHost = _options.StartUrl.Host;
-            var links = _driver.FindElementsByCssSelector("a[href]")
+            var links = _driver.FindElementsByTagName("a")
                 .Select(a =>
                 {
                     try
                     {
-                        return new Uri(a.GetAttribute("href"));
+                        if (a.GetAttribute("href") != null)
+                            return new Uri(a.GetAttribute("href"));
+                        else
+                            return new Uri(a.GetAttribute("ng-href"));
                     }
                     catch (Exception ex)
                     {
