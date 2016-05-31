@@ -37,7 +37,7 @@ namespace Seo.Crawler.Selenium
         public static void DataTableToExcel(string filePath, DataTable dtDataTable)
         {
             XLWorkbook wb = new XLWorkbook();
-            wb.Worksheets.Add(dtDataTable, "Result" + DateTime.Now.ToString("YYYYmmDDHHMMss"));
+            wb.Worksheets.Add(dtDataTable, "Result" + DateTime.Now.ToString("yyyyMMddHHmmss"));
             wb.SaveAs(filePath);
         }
         public static void DataTableToExcel(string filePath, DataTable dtDataTable,string SheetName)

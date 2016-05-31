@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Configuration;
 using System.Diagnostics;
+using System.Linq;
 using System.ServiceProcess;
 using System.Threading;
 using System.Timers;
@@ -32,27 +34,28 @@ namespace Seo.Crawler.Service
 
         private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            var RepeatTime = System.Configuration.ConfigurationManager.GetSection("TimeInterval") as TimeInterval;
+            var RepeatTime = ConfigurationManager.GetSection("TimeInterval") as TimeInterval;
             try
             {
 
-                var options = System.Configuration.ConfigurationManager.GetSection("WebCrawlerOptions") as CrawlerOptions;
-                if (options.Run)
-                {
-                    logger.Info(options.Name + " Config is {0}", options);
-                    var crawler = new Crawler(options);
-                    crawler.Start();
-                }
-                options = System.Configuration.ConfigurationManager.GetSection("MobileCrawlerOptions") as CrawlerOptions;
-                if (options.Run)
+                var cfg = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+                var localSections = cfg.Sections.Cast<ConfigurationSection>()
+                    .Where(s => s.SectionInformation.IsDeclared);
+                foreach (var i in localSections)
                 {
 
-                    logger.Info(options.Name + " Config is {0}", options);
-                    var crawler = new Crawler(options);
-                    crawler.Start();
+                    var options =
+                        ConfigurationManager.GetSection(i.SectionInformation.SectionName) as
+                            CrawlerOptions;
+                    if (options.Run && i.SectionInformation.SectionName.Contains("CrawlerOptions"))
+                    {
+                        logger.Info(options.Name + " Config is {0}", options);
+                        var crawler = new Crawler(options);
+                        crawler.Start();
+                    }
                 }
 
-                RepeatTime = System.Configuration.ConfigurationManager.GetSection("TimeInterval") as TimeInterval;
+                RepeatTime = ConfigurationManager.GetSection("TimeInterval") as TimeInterval;
 
                 logger.Info("[Report TimeR]" + RepeatTime.time);
                 _timer.Stop();

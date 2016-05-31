@@ -13,7 +13,9 @@ using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Remote;
 using System.Threading.Tasks;
 using System.Data;
+using System.Reflection;
 using OpenQA.Selenium;
+using OpenQA.Selenium.Support.UI;
 using Seo.Crawler.Selenium;
 
 namespace Seo.Crawler.Service
@@ -67,6 +69,8 @@ namespace Seo.Crawler.Service
         private static void CrawlFirstPage(Uri startUrl)
         {
             ChromeOptions chromeOptions = new ChromeOptions();
+            chromeOptions.AddArgument("--user-agent=" + _options.UserAgent);
+            
             var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
             try
             {
@@ -87,6 +91,8 @@ namespace Seo.Crawler.Service
         public static void CrawlPage(Uri startUrl)
         {
             ChromeOptions chromeOptions = new ChromeOptions();
+            chromeOptions.AddArgument("--user-agent=" + _options.UserAgent);
+            chromeOptions.AddArgument("user-data-dir=C:/Debug/" + startUrl.AbsolutePath);
             var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
             
             try
@@ -109,6 +115,7 @@ namespace Seo.Crawler.Service
                     foreach (var Key in PartThreading.Keys)
                     {
                         _driver.Navigate().GoToUrl(Key);
+                        
                         SaveHtmlAndScreenShot(Key, _driver);
                         pageToVisit = GetUnvisitedLinks(_driver, Key, _driver.Url, PartThreading, pageToVisit, startUrl);
                         pageVisitedURLMapping.TryAdd(Key, PartThreading[Key]);
@@ -141,7 +148,7 @@ namespace Seo.Crawler.Service
         private static void Finish()
         {
             CompareLinks();
-            ExcelHandler.DataTableToExcel(_options.FolderPath + "\\" + _options.Name+"AllLinksTable" + DateTime.Now.ToString("yyyymmddHHMMss") + ".xlsx", ExcelHandler.LinkToDatatTable(pageVisitedURLMapping), "Sheet1");
+            ExcelHandler.DataTableToExcel(_options.FolderPath + "\\" + _options.Name + "AllLinksTable" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".xlsx", ExcelHandler.LinkToDatatTable(pageVisitedURLMapping), "Sheet1");
             ExcelHandler.DataTableToExcel(_options.FolderPath + "\\PageNonValidateList.xlsx", ExcelHandler.ConvertClassToTable(pageNotFoundMapping));
             SaveSitemap();
             _watch.Stop();
@@ -155,7 +162,7 @@ namespace Seo.Crawler.Service
             
             var result = new List<Uri>();
             var originHost = _options.StartUrl.Host;
-            var links = _driver.FindElementsByTagName("a")
+            var links = _driver.FindElementsByCssSelector("a[href],a[ng-href]")
                 .Select(a =>
                 {
                     try
@@ -197,7 +204,7 @@ namespace Seo.Crawler.Service
         private static void ValidatePage(RemoteWebDriver _driver ,Uri currentUri ,Uri parentUri)
         {
             PageInfoToExcel pageInfo = new PageInfoToExcel();
-
+            
             List<LogEntry> logEntry = _driver.Manage().Logs.GetLog(LogType.Browser).ToList();
             Boolean ValidateFailed = false;
 
@@ -215,7 +222,7 @@ namespace Seo.Crawler.Service
             }
             if (ValidateFailed)
             {
-                pageInfo.SourceURL = parentUri.ToString();
+                pageInfo.SourceURL = parentUri != null ?parentUri.ToString(): "";
                 pageNotFoundMapping.TryAdd(currentUri, pageInfo);
             }
 
@@ -228,7 +235,7 @@ namespace Seo.Crawler.Service
                 var removeScriptTag =
                     "Array.prototype.slice.call(document.getElementsByTagName('script')).forEach(function(item) { item.parentNode.removeChild(item);});";
                 var addClassToBody = "document.getElementsByTagName('body')[0].className += ' seoPrerender';";
-
+                
                 _driver.ExecuteScript(removeScriptTag + addClassToBody);   
                 //uri.AbsolutePath is relative url
                 var result = _driver.PageSource;
@@ -256,7 +263,7 @@ namespace Seo.Crawler.Service
         {
             try
             {
-                string sitemapPath = string.Format("{0}/{1}sitemap.xml", _options.FolderPath, DateTime.Now.ToString("dd-MM-yyyy"));
+                string sitemapPath = string.Format("{0}/{1}sitemap.xml", _options.FolderPath, DateTime.Now.ToString("MM-dd-yyyy"));
                 using (var fileStream = new FileStream(sitemapPath, FileMode.Create))
                 {
                     var siteMapGenerator = new SiteMapGenerator(fileStream, Encoding.UTF8);
@@ -297,7 +304,7 @@ namespace Seo.Crawler.Service
 
                     }
 
-                    ExcelHandler.DataTableToExcel(_options.FolderPath + "\\" + _options.Name + "Different" + DateTime.Now.ToString("yyyymmddHHMMss") + ".xlsx", ExcelHandler.DictToDatatTable(differentLinksMap), "Sheet1");
+                    ExcelHandler.DataTableToExcel(_options.FolderPath + "\\" + _options.Name + "Different" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".xlsx", ExcelHandler.DictToDatatTable(differentLinksMap), "Sheet1");
 
                 }
             }

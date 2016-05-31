@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Linq;
 using System.ServiceProcess;
 using DocumentFormat.OpenXml.Office2010.ExcelAc;
 using NLog;
@@ -29,22 +31,23 @@ namespace Seo.Crawler.Service
                 // Startup as application
                 try
                 {
+                    var cfg = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+                    var localSections = cfg.Sections.Cast<ConfigurationSection>()
+                        .Where(s => s.SectionInformation.IsDeclared);
+                    foreach (var i in localSections)
+                    {
 
-                    var options = System.Configuration.ConfigurationManager.GetSection("WebCrawlerOptions") as CrawlerOptions;
-                    if (options.Run)
-                    {
-                        logger.Info(options.Name + " Config is {0}", options);
-                        var crawler = new Crawler(options);
-                        crawler.Start();
+                        var options =
+                            System.Configuration.ConfigurationManager.GetSection(i.SectionInformation.SectionName) as
+                                CrawlerOptions;
+                        if (options.Run && i.SectionInformation.SectionName.Contains("CrawlerOptions"))
+                        {
+                            logger.Info(options.Name + " Config is {0}", options);
+                            var crawler = new Crawler(options);
+                            crawler.Start();
+                        }
                     }
-                    options =System.Configuration.ConfigurationManager.GetSection("MobileCrawlerOptions") as CrawlerOptions;
-                    if (options.Run)
-                    {
-                        
-                        logger.Info(options.Name + " Config is {0}", options);
-                        var crawler = new Crawler(options);
-                        crawler.Start();
-                    }
+
                 }
                 catch (Exception ex)
                 {
