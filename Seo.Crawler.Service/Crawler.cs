@@ -70,7 +70,7 @@ namespace Seo.Crawler.Service
         {
             ChromeOptions chromeOptions = new ChromeOptions();
             chromeOptions.AddArgument("--user-agent=" + _options.UserAgent);
-            
+            chromeOptions.AddArgument("--start-maximized");
             var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
             try
             {
@@ -93,6 +93,7 @@ namespace Seo.Crawler.Service
             ChromeOptions chromeOptions = new ChromeOptions();
             chromeOptions.AddArgument("--user-agent=" + _options.UserAgent);
             chromeOptions.AddArgument("user-data-dir=C:/Debug/" + startUrl.AbsolutePath);
+            chromeOptions.AddArgument("--start-maximized");
             var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
             
             try
