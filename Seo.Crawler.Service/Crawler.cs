@@ -92,7 +92,7 @@ namespace Seo.Crawler.Service
         {
             ChromeOptions chromeOptions = new ChromeOptions();
             chromeOptions.AddArgument("--user-agent=" + _options.UserAgent);
-            chromeOptions.AddArgument("user-data-dir=C:/Debug/" + startUrl.AbsolutePath);
+            chromeOptions.AddArgument("user-data-dir=C:/Debug/" + _options.Name + "/ "+ startUrl.AbsolutePath);
             chromeOptions.AddArgument("--start-maximized");
             var _driver = new RemoteWebDriver(_options.RemoteHubUrl, chromeOptions.ToCapabilities());
             
@@ -183,7 +183,7 @@ namespace Seo.Crawler.Service
             foreach (var link in links)
             {
                 if (link != null && link.AbsoluteUri.Contains(startUri.AbsoluteUri) && !pageVisitedURLMapping.ContainsKey(link)
-                    && !pageToVist.ContainsKey(link) && !PartThreading.ContainsKey(link) && !result.Contains(link))
+                    && !pageToVist.ContainsKey(link) && !PartThreading.ContainsKey(link) && !result.Contains(link) && !link.AbsoluteUri.Contains("/live/lobby?partnerName"))
                 {
                     result.Add(link );
                 }
