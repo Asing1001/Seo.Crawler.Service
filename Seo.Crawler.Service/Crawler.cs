@@ -77,7 +77,7 @@ namespace Seo.Crawler.Service
             try
             {
                 _driver.Navigate().GoToUrl(startUrl);
-                if (!ismaintenanceChecker(_driver))
+                if (ismaintenanceChecker(_driver))
                 {
                     SaveHtmlAndScreenShot(startUrl, _driver);
                     pageVisitedURLMapping.TryAdd(startUrl, startUrl);
@@ -121,7 +121,7 @@ namespace Seo.Crawler.Service
                     foreach (var Key in PartThreading.Keys)
                     {
                         _driver.Navigate().GoToUrl(Key);
-                        if (!ismaintenanceChecker(_driver))
+                        if (ismaintenanceChecker(_driver))
                         {
                             SaveHtmlAndScreenShot(Key, _driver);
                             pageToVisit = GetUnvisitedLinks(_driver, Key, _driver.Url, PartThreading, pageToVisit,
@@ -322,17 +322,17 @@ namespace Seo.Crawler.Service
         }
 
 
+
         private static Boolean ismaintenanceChecker(RemoteWebDriver _driver)
         {
-            HttpWebRequest webRequest = (HttpWebRequest)WebRequest.Create(_driver.Url);
-            webRequest.AllowAutoRedirect = true;
-            HttpWebResponse response = (HttpWebResponse)webRequest.GetResponse();
-            if ((int) response.StatusCode != 503)
+            logger.Debug("Site Title :" + _driver.Title);
+            if (_driver.Title == "188BET Website Maintenance")
             {
                 return false;
             }
             return true;
         }
+
 
 
     }
