@@ -13,6 +13,7 @@ using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Remote;
 using System.Threading.Tasks;
 using System.Data;
+using System.Net;
 using System.Reflection;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
@@ -40,6 +41,7 @@ namespace Seo.Crawler.Service
 
         public void Start()
         {
+            Process.Start("taskkill", "/F /IM chromedriver_win.exe");
             _watch.Start();
             CrawlByLanguage(_options.Languages, _options.StartUrl);
             Finish();
@@ -75,8 +77,11 @@ namespace Seo.Crawler.Service
             try
             {
                 _driver.Navigate().GoToUrl(startUrl);
-                SaveHtmlAndScreenShot(startUrl, _driver);
-                pageVisitedURLMapping.TryAdd(startUrl, startUrl);
+                if (!ismaintenanceChecker(_driver))
+                {
+                    SaveHtmlAndScreenShot(startUrl, _driver);
+                    pageVisitedURLMapping.TryAdd(startUrl, startUrl);
+                }
                 _driver.Close();
                 _driver.Quit();
             }
@@ -116,13 +121,15 @@ namespace Seo.Crawler.Service
                     foreach (var Key in PartThreading.Keys)
                     {
                         _driver.Navigate().GoToUrl(Key);
-                        
-                        SaveHtmlAndScreenShot(Key, _driver);
-                        pageToVisit = GetUnvisitedLinks(_driver, Key, _driver.Url, PartThreading, pageToVisit, startUrl);
-                        pageVisitedURLMapping.TryAdd(Key, PartThreading[Key]);
-                        
-                        ValidatePage(_driver, Key, PartThreading[Key]);
+                        if (!ismaintenanceChecker(_driver))
+                        {
+                            SaveHtmlAndScreenShot(Key, _driver);
+                            pageToVisit = GetUnvisitedLinks(_driver, Key, _driver.Url, PartThreading, pageToVisit,
+                                startUrl);
+                            pageVisitedURLMapping.TryAdd(Key, PartThreading[Key]);
 
+                            ValidatePage(_driver, Key, PartThreading[Key]);
+                        }
                     }
 
                     logger.Info(" Thread : " + startUrl.PathAndQuery + " Page Finish Visit Size :{0}",   pageVisitedURLMapping.Count);
@@ -314,6 +321,19 @@ namespace Seo.Crawler.Service
             
         }
 
-        
+
+        private static Boolean ismaintenanceChecker(RemoteWebDriver _driver)
+        {
+            HttpWebRequest webRequest = (HttpWebRequest)WebRequest.Create(_driver.Url);
+            webRequest.AllowAutoRedirect = true;
+            HttpWebResponse response = (HttpWebResponse)webRequest.GetResponse();
+            if ((int) response.StatusCode != 503)
+            {
+                return false;
+            }
+            return true;
+        }
+
+
     }
 }
