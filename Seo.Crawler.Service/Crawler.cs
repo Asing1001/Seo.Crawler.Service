@@ -41,7 +41,7 @@ namespace Seo.Crawler.Service
 
         public void Start()
         {
-            Process.Start("taskkill", "/F /IM chromedriver_win.exe");
+            //Process.Start("taskkill", "/F /IM chromedriver_win.exe");
             _watch.Start();
             CrawlByLanguage(_options.Languages, _options.StartUrl);
             Finish();
